@@ -19,6 +19,7 @@ import chokidar from "chokidar";
 import figlet from "figlet";
 import fs from "fs"
 import NodeCache from "node-cache";
+import readline from "readline";
 import { Boom } from "@hapi/boom";
 import { Messages } from "./lib/Messages.js";
 import { color } from "./lib/utils.js";
@@ -28,12 +29,26 @@ import bus from "./bridge.js";
 const logger = Pino({
     level: "silent"
 });
+let phoneNumber = "6281226632293"
+const pairingCode = !!phoneNumber || process.argv.includes("--pairing-code");
 const useMobile = process.argv.includes("--mobile");
 let sock = null;
 let reconnecting = false;
 let reconnectDelay= 3000
 const groupCache = new NodeCache({ stdTTL: 5 * 60, useClones: false });
 const msgRetryCounterCache = new NodeCache();
+const askQuestion = (query) => {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  return new Promise((resolve) =>
+    rl.question(query, (ans) => {
+      rl.close();
+      resolve(ans);
+    })
+  );
+};
 
  async function socket() {
   if(reconnecting) return;
@@ -61,7 +76,7 @@ const msgRetryCounterCache = new NodeCache();
             Pino({ level: "fatal" }).child({ level: "fatal" })
         )
     },
-    mobile: useMobile, // mobile api (prone to bans)
+     printQRInTerminal: !pairingCode,
      retryRequestDelayMs: 300,
      connectTimeoutMs: 60000,
      defaultQueryTimeoutMs: 0,
@@ -69,15 +84,15 @@ const msgRetryCounterCache = new NodeCache();
      version: version,
      logger: logger,  
      markOnlineOnConnect: true,
-     syncFullHistory: true,
+     syncFullHistory: false,
      msgRetryCounterCache,
      generateHighQualityLinkPreview: true,
-     browser: Browsers.ubuntu("Firefox"),
+    browser: ["Ubuntu", "Chrome", "20.0.04"],
      cachedGroupMetadata: async (jid) => groupCache.get(jid),
-     shouldSyncHistoryMessage: msg => {
+     /*shouldSyncHistoryMessage: msg => {
 			console.log(`\x1b[32mMemuat Chat [${msg.progress || 0}%]\x1b[39m`);
 			return !!msg.syncType;		
-    },
+    },*/
     transactionOpts: {
 			maxCommitRetries: 10,
 			delayBetweenTriesMs: 10,
@@ -87,6 +102,18 @@ const msgRetryCounterCache = new NodeCache();
 			snapshot: true,
 		},
    });
+
+    if (pairingCode && !sock.authState.creds.registered) {
+    if (useMobile) throw new Error('Cannot use pairing code with mobile api')
+    const number = await askQuestion(
+      "Enter your phone number in international format (e.g., 62xxxx): "
+    );
+    setTimeout(async() => {
+      const code = await sock.requestPairingCode(number);
+      console.log("🎁 Pairing Code: " + code);
+
+    }, 3000)
+  }
 
   sock.ev.process(async (ev) => {
     if (ev["connection.update"]) {
