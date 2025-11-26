@@ -1,5 +1,5 @@
-/node_modules
-/session
+node_modules/
+db/
 package-lock.json
-/db
+.env
 setting.js

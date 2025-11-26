@@ -139,10 +139,8 @@ const askQuestion = (query) => {
             process.exit();
           } else if (reason === DisconnectReason.connectionClosed) {
             console.log("Connection closed, reconnecting....");
-            socket();
           } else if (reason === DisconnectReason.connectionLost) {
             console.log("Connection Lost from Server, reconnecting...");
-            setTimeout(socket(), 10000);
           } else if (reason === DisconnectReason.connectionReplaced) {
             console.log("Connection Replaced, Another New Session Opened, Please Close Current Session First");
             process.exit();
@@ -152,13 +150,10 @@ const askQuestion = (query) => {
             process.exit();
           } else if (reason === DisconnectReason.restartRequired) {
             console.log("Restart Required, Restarting...");
-            socket();
           } else if (reason === DisconnectReason.timedOut) {
             console.log("Connection TimedOut, Reconnecting...");
-            socket();
           } else {
             console.log(`Unknown DisconnectReason: ${reason}|${connection}`);
-            socket();
           }
         } else if (connection === 'open') {
             console.log(`session Connected: ${jidDecode(sock?.user?.id)?.user}`);
