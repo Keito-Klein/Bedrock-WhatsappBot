@@ -29,7 +29,7 @@ let msgHandler = async (upsert, sock, message) => {
     ? await sock.groupMetadata(message.chat)
     : {};
     const isGroup = message.isGroup;
-    let sender = m.isGroup ? m.key.fromMe ? m.sender : m.key.participant : m.sender;
+    let sender = message.isGroup ? message.key.fromMe ? message.sender : message.key.participant : message.sender;
     /*let infoMSG = JSON.parse(fs.readFileSync("./db/message.json"));
   infoMSG.push(JSON.parse(JSON.stringify(mek)));
   fs.writeFileSync("./db/message.json", JSON.stringify(infoMSG, null, 2));

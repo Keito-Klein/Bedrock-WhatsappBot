@@ -9,6 +9,7 @@ const avoidText = [
   "Scripting Error",
   "TypeError",
   "Error",
+  "[Json]"
 ];
 
 const TIME_ACCUMULATION = "./db/play_time.json";
