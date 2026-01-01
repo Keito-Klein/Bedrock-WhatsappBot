@@ -29,7 +29,7 @@ let msgHandler = async (upsert, sock, message) => {
     ? await sock.groupMetadata(message.chat)
     : {};
     const isGroup = message.isGroup;
-    let sender = message.key.addressingMode === "pn" ? message.sender : message.key.remoteJidAlt;
+    let sender = m.isGroup ? m.key.fromMe ? m.sender : m.key.participant : m.sender;
     /*let infoMSG = JSON.parse(fs.readFileSync("./db/message.json"));
   infoMSG.push(JSON.parse(JSON.stringify(mek)));
   fs.writeFileSync("./db/message.json", JSON.stringify(infoMSG, null, 2));
@@ -40,31 +40,17 @@ let msgHandler = async (upsert, sock, message) => {
   }*/
 
     // LID
-    let isGroupAdmins
-    let isBotGroupAdmins
-    if (isGroup) {
-      if (message.key.addressingMode === "pn") {
-        sender = message.sender;
-      isGroupAdmins = groupMetadata.participants
-        .filter((participant) => participant.admin)
-        .map((participant) => participant.id)
-        .includes(sender)
-      isBotGroupAdmins = groupMetadata.participants
-        .filter((participant) => participant.admin)
-        .map((participant) => participant.id)
-        .includes(sock.user.id)
-      } else {
-        sender = message.key.participantAlt
-      isGroupAdmins = groupMetadata.participants
-        .filter((participant) => participant.admin)
-        .map((participant) => participant.phoneNumber)
-        .includes(sender)
-      isBotGroupAdmins = groupMetadata.participants
-        .filter((participant) => participant.admin)
-        .map((participant) => participant.phoneNumber)
-        .includes(sock.user.id)
-      }
+  const getGroupAdmins = (participants) => {
+    admins = [];
+    for (let i of participants) {
+      i.admin ? admins.push(i.jid) : "";
     }
+    return admins;
+  };
+    const groupMembers = m.isGroup ? groupMetadata.participants : "";
+    const groupAdmins = m.isGroup ? getGroupAdmins(groupMembers) : "";
+    const isGroupAdmins = groupAdmins.includes(sender) || false;
+    let isBotGroupAdmins = groupAdmins.includes(botNumber) || false;
     // LID
 
     const groupName = isGroup ? groupMetadata.subject : "";

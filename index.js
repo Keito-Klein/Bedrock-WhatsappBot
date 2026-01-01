@@ -8,7 +8,6 @@ import {
   jidDecode,
   Browsers
 } from "@whiskeysockets/baileys";
-import qrcode from "qrcode-terminal"
 import Pino from "pino";
 import { msgHandler as initialMsgHandler } from "./handler.js";
 let msgHandler = initialMsgHandler;
@@ -17,10 +16,8 @@ import "./handler.js";
 moment.tz.setDefault("Asia/Jakarta").locale("id");
 import chokidar from "chokidar";
 import figlet from "figlet";
-import fs from "fs"
 import NodeCache from "node-cache";
 import readline from "readline";
-import { Boom } from "@hapi/boom";
 import { Messages } from "./lib/Messages.js";
 import { color } from "./lib/utils.js";
 import bus from "./bridge.js";
@@ -68,40 +65,23 @@ const askQuestion = (query) => {
     )
   );
 
-  sock = makeWASocket({
-    auth: {
-        creds: state.creds,
-        keys: makeCacheableSignalKeyStore(
-            state.keys,
-            Pino({ level: "fatal" }).child({ level: "fatal" })
-        )
+  let sock = makeWASocket({
+    version,
+    browser: Browsers.iOS("Safari"), 
+    printQRInTerminal: false,
+    markOnlineOnConnect: true,
+    msgRetryCounterCache,
+    generateHighQualityLinkPreview: true,
+    logger: Pino({ level: "silent" }),
+    auth: state,
+    getMessage: async (key) => {
+			if (store) {
+				const msg = await store.loadMessage(key.remoteJid, key.id)
+				return msg.message || undefined
+			}
     },
-     printQRInTerminal: !pairingCode,
-     retryRequestDelayMs: 300,
-     connectTimeoutMs: 60000,
-     defaultQueryTimeoutMs: 0,
-     maxMsgRetryCount: 15,
-     version: version,
-     logger: logger,  
-     markOnlineOnConnect: true,
-     syncFullHistory: false,
-     msgRetryCounterCache,
-     generateHighQualityLinkPreview: true,
-    browser: ["Ubuntu", "Chrome", "20.0.04"],
-     cachedGroupMetadata: async (jid) => groupCache.get(jid),
-     /*shouldSyncHistoryMessage: msg => {
-			console.log(`\x1b[32mMemuat Chat [${msg.progress || 0}%]\x1b[39m`);
-			return !!msg.syncType;		
-    },*/
-    transactionOpts: {
-			maxCommitRetries: 10,
-			delayBetweenTriesMs: 10,
-		},
-    appStateMacVerification: {
-			patch: true,
-			snapshot: true,
-		},
-   });
+    cachedGroupMetadata: async (jid) => groupCache.get(jid),
+  });
 
     if (pairingCode && !sock.authState.creds.registered) {
     if (useMobile) throw new Error('Cannot use pairing code with mobile api')
@@ -119,42 +99,12 @@ const askQuestion = (query) => {
     if (ev["connection.update"]) {
       const update = ev["connection.update"];
       const { connection, lastDisconnect } = update;
-      const status = lastDisconnect?.error?.output?.statusCode;
-      // console.log(update.qr);
-      if (update.qr) {
-        qrcode.generate(update.qr, {small: true}, function (qrcode) {
-          console.log(qrcode)
-      });
-    }
 
         if (connection === 'close') {
-          let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
-
           bus.emit("baileysDisconnected")
-          const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
-          if (shouldReconnect) scheduleReconnect()
-          if (reason === DisconnectReason.badSession) {
-            console.log(`Bad Session File, Please Scan Again`);
-            fs.rmSync(`./session`, { recursive: true, force: true });
-            process.exit();
-          } else if (reason === DisconnectReason.connectionClosed) {
-            console.log("Connection closed, reconnecting....");
-          } else if (reason === DisconnectReason.connectionLost) {
-            console.log("Connection Lost from Server, reconnecting...");
-          } else if (reason === DisconnectReason.connectionReplaced) {
-            console.log("Connection Replaced, Another New Session Opened, Please Close Current Session First");
-            process.exit();
-          } else if (reason === DisconnectReason.loggedOut) {
-            console.log(`Device Logged Out, Please Scan Again`);
-            fs.rmSync(`./session`, { recursive: true, force: true });
-            process.exit();
-          } else if (reason === DisconnectReason.restartRequired) {
-            console.log("Restart Required, Restarting...");
-          } else if (reason === DisconnectReason.timedOut) {
-            console.log("Connection TimedOut, Reconnecting...");
-          } else {
-            console.log(`Unknown DisconnectReason: ${reason}|${connection}`);
-          }
+            const reason = lastDisconnect?.error?.output?.statusCode;
+            if (reason !== DisconnectReason.loggedOut) scheduleReconnect();
+            else console.log("Device Logged out, remove /session to re-login.");
         } else if (connection === 'open') {
             console.log(`session Connected: ${jidDecode(sock?.user?.id)?.user}`);
             reconnecting = false;
