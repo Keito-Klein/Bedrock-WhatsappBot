@@ -18,6 +18,7 @@ import chokidar from "chokidar";
 import figlet from "figlet";
 import NodeCache from "node-cache";
 import readline from "readline";
+import setting from "./setting.js";
 import { Messages } from "./lib/Messages.js";
 import { color } from "./lib/utils.js";
 import bus from "./bridge.js";
@@ -107,6 +108,7 @@ const askQuestion = (query) => {
             else console.log("Device Logged out, remove /session to re-login.");
         } else if (connection === 'open') {
             console.log(`session Connected: ${jidDecode(sock?.user?.id)?.user}`);
+            sock.sendMessage(setting.minecraft.announceChat, { text: `🤖 Client connected to server!` });
             reconnecting = false;
             reconnectDelay= 3000
         }

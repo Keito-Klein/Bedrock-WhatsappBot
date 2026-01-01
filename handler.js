@@ -41,21 +41,21 @@ let msgHandler = async (upsert, sock, message) => {
 
     // LID
   const getGroupAdmins = (participants) => {
-    admins = [];
+    const admins = [];
     for (let i of participants) {
       i.admin ? admins.push(i.jid) : "";
     }
     return admins;
   };
-    const groupMembers = m.isGroup ? groupMetadata.participants : "";
-    const groupAdmins = m.isGroup ? getGroupAdmins(groupMembers) : "";
+    const groupMembers = message.isGroup ? groupMetadata.participants : "";
+    const groupAdmins = message.isGroup ? getGroupAdmins(groupMembers) : "";
     const isGroupAdmins = groupAdmins.includes(sender) || false;
+    const botNumber = sock.user.id;
     let isBotGroupAdmins = groupAdmins.includes(botNumber) || false;
     // LID
 
     const groupName = isGroup ? groupMetadata.subject : "";
     const pushname = message.pushName || sender;
-    const botNumber = sock.user.id;
     const itsMe = message.key.fromMe || sender === botNumber;
     if (!sender) return
     const ownerNumber = setting.owner + "@s.whatsapp.net";
