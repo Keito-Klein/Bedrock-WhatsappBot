@@ -65,7 +65,7 @@ const askQuestion = (query) => {
     )
   );
 
-  let sock = makeWASocket({
+  sock = makeWASocket({
     version,
     browser: Browsers.iOS("Safari"), 
     printQRInTerminal: false,
