@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import fs from "fs";
 import setting from "./setting.js";
 import bus from "./bridge.js";
+import { clear } from "console";
 
 const avoidText = [
   "Running AutoCompaction",
@@ -17,6 +18,7 @@ const TOTAL_PLAYERS = "./db/players.json";
 
 let reconnecting = false;
 let baileys;
+let heartBeatInterval;
 let reconnectDelay = 2000; // 2 seconds
 let playerTime = {};
 let totalPlayers = []
@@ -44,12 +46,28 @@ async function startServer() {
 
   let ws = new WebSocket(`ws://${setting.minecraft.HOST}:${setting.minecraft.PORT}`);
 
+  ws.isAlive = true;
+
   ws.on("open", () => {
     console.log("Client connected to Minecraft server!");
     
     reconnectDelay = 2000;
     reconnecting = false;
+
+    heartBeatInterval = setInterval(() => {
+      if (ws.isAlive === false) {
+        console.log("Terminating unresponsive connection to server");
+        ws.terminate();
+        return;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    }, setting.wsHeartBeat || 45000);
   });
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  })
 
   ws.on("message", async(message) => {
     if(avoidText.some(text => message.toString().includes(text))) return;
@@ -94,6 +112,7 @@ async function startServer() {
 
 ws.on("close", async() => {
     console.log("Disconnected from server.");
+    clearInterval(heartBeatInterval);
     bus.emit("wsDisconnected");
     scheduleReconnect();
 })

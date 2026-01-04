@@ -149,7 +149,7 @@ if (upsert) {
     });
 
     bus.on("wsMessage", (receiver, msg) => {
-        if (sock?.user) {
+        if (sock.ws.readyState !== sock.ws.OPEN) {
             try {
                 sock.sendMessage(receiver, { text: msg });
             } catch {

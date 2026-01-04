@@ -6,7 +6,8 @@ const setting = {
         PORT: 3000,
         announceChat: "120363xxxxx@g.us",
         conversationChat: "120363xxxxxx@g.us"
-    }
+    },
+    wsHeartBeat: 4.5E4
 };
 
 export default setting;
