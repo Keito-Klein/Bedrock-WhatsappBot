@@ -153,6 +153,8 @@ module.exports = core = async (client, m, chatUpdate) => {
   //auto read incoming message
   await client.readMessages([m.key]);
 
+  if(isGroup && !setting.minecraft.groups.includes(groupMetadata.id)) return;
+
   //Send conversastion to Minecraft WebSocket
   if (global.ws && global.ws.readyState === global.ws.OPEN) {
     if(isGroup && groupMetadata.id == setting.minecraft.conversationChat && !itsMe) {

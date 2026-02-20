@@ -7,8 +7,10 @@ const setting = {
     minecraft: {
         HOST: "127.0.0.1", //your IP server or domain server
         PORT: 19132,
+        groups: ["12036341xxxxx@g.us", "12036341xxxxx@g.us", "12036341xxxxx@g.us"], //where this bot can only be used
         announceChat: "12036341xxxxx@g.us",
         conversationChat: "12036341xxxxx@g.us"
+
     }
 }
 
