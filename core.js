@@ -2,6 +2,7 @@ require("./server");
 const fs = require("fs");
 const os = require("os");
 const chalk = require("chalk");
+const axios = require("axios");
 const path = require("path");
 const speed = require("performance-now");
 const moment = require("moment-timezone");
@@ -266,6 +267,25 @@ module.exports = core = async (client, m, chatUpdate) => {
         global.ws.send("list");
       }
       break;
+      
+      case "mcprofile": {
+        if(!q) return reply("Please enter player name or gamertag!");
+        const req = await axios.get(`https://mcprofile.io/api/v1/bedrock/gamertag/${encodeURIComponent(text)}`)
+        if(req.data.message) return reply(req.data.message);
+        const data = req.data;
+        const imgUrl = data.icon
+        const textTemplate = `*Minecraft Profile*
+- *Gamertag:* ${data.gamertag}
+- *XUID:* ${data.xuid}
+- *Floodgate ID:* ${data.floodgateuid}
+- *Game Score:* ${data.gamescore}
+- *Account Tier:* ${data.accounttier}
+- *Texture ID:* ${data.textureid}
+- "Skin:* ${data.skin}
+`
+        client.sendImage(from, imgUrl, textTemplate, mek)
+      }
+      break
 
       case "listplayer":{
         let data = JSON.parse(fs.readFileSync("./db/players.json"));
