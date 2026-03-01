@@ -86,7 +86,9 @@ global.ws.on("message", async(message) => {
             totalPlayers.push(player);
             fs.writeFileSync(TOTAL_PLAYERS, JSON.stringify(totalPlayers, null, 2));
         }
-    }/*else if (message.toString().includes("[PHONE]")) {
+    }else if(message.toString().includes("[DEATH]")) {
+        await client.sendText(setting.minecraft.announceChat, `*[DEATH]*\n\n${cleanText}`)
+    } /*else if (message.toString().includes("[PHONE]")) {
         const [_, player, phoneNumber, otp] = cleanText.match(/(.+?) : (\d{9,15}) : (\d+)/);
         metadata = global.db.groupMetadata["120363321807611707@g.us"];
         const isMember = metadata?.participants.some(participant => participant.jid.split("@")[0] === phoneNumber);
