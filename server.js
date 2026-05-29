@@ -57,7 +57,7 @@ global.ws.on("open", () => {
     console.log("Client connected to Minecraft server!");
     setTimeout(() => {
         client.sendText(setting.minecraft.announceChat, "Client connected to Minecraft server!");
-    }, 3000)
+    }, 5000)
     reconnectDelay = 15000;
     retryCount = 0;
 })

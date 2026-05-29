@@ -1,22 +1,11 @@
 require("./setting");
 
 //Modules
-const {
-  makeWASocket,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  downloadContentFromMessage,
-  makeCacheableSignalKeyStore,
-  generateWAMessageFromContent,
-  Browsers,
-  jidDecode,
-  proto,
-  useMultiFileAuthState,
-} = require("baileys");
 const NodeCache = require("node-cache");
 const figlet = require("figlet");
 const fs = require("fs");
 const Pino = require("pino");
+const chalk = require("chalk");
 const path = require("path");
 const readline = require("readline");
 const fileType = require("file-type");
@@ -49,6 +38,9 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let client;
+let reconnecting = false;
 
 const storeDB = new dataBase('./store.json');
 const database = new dataBase('./database.json');
@@ -58,10 +50,25 @@ const database = new dataBase('./database.json');
 
 
 async function sock() {
+  const {
+  makeWASocket,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  downloadContentFromMessage,
+  makeCacheableSignalKeyStore,
+  generateWAMessageFromContent,
+  Browsers,
+  jidDecode,
+  proto,
+  useMultiFileAuthState,
+} = await import("@whiskeysockets/baileys");
   if (global.connected) return client
   const { state, saveCreds } = await useMultiFileAuthState("session");
-  const { version, isLatest } = await fetchLatestBaileysVersion();
+  const { version, isLatest, error: versionError } = await fetchLatestBaileysVersion();
   console.log(`using WA v${version.join(".")}, isLatest: ${isLatest}`);
+  if (versionError) {
+    console.log("Failed to fetch latest WA version, using Baileys bundled version.");
+  }
   console.log(
     color(
       figlet.textSync("Vertibus", {
@@ -123,13 +130,19 @@ async function sock() {
   //Opening Connection
   client = makeWASocket({
     version,
-    browser: Browsers.iOS("Safari"), 
+    browser: Browsers.macOS("Chrome"), 
     printQRInTerminal: false,
     markOnlineOnConnect: true,
     msgRetryCounterCache,
     generateHighQualityLinkPreview: true,
     logger: Pino({ level: "silent" }),
-    auth: state,
+    auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(
+            state.keys,
+            Pino({ level: "silent" })
+        )
+    },
     getMessage: async (key) => {
 			if (store) {
 				const msg = await store.loadMessage(key.remoteJid, key.id)
@@ -146,16 +159,29 @@ async function sock() {
   //create serialize message
   client.serializeM = (m) => smsg(client, m, store);
 
-  // login use pairing code
-  // source code https://github.com/WhiskeySockets/Baileys/blob/master/Example/example.ts#L61
   if (pairingCode && !client.authState.creds.registered) {
-    const phoneNumber = await question(
-      "Enter your phone number in international format (e.g., 62xxxx): "
-    );
-    const code = await client.requestPairingCode(phoneNumber.trim());
-    console.log(`🎁  Pairing Code : ${code}`);
+    const number = String(setting.owner?.[1] || phoneNumber).replace(/\D/g, "");
+    if (!number) {
+      console.log("Pairing code is enabled, but phone number is empty.");
+    } else {
+      await delay(3000);
+      for (let attempt = 1; attempt <= 5 && !client.authState.creds.registered; attempt++) {
+        try {
+          await client.waitForSocketOpen();
+          const code = await client.requestPairingCode(number);
+          console.log(`Pairing Code : ${code}`);
+          break;
+        } catch (err) {
+          const statusCode = new Boom(err)?.output?.statusCode;
+          if (statusCode !== DisconnectReason.connectionClosed || attempt === 5) {
+            console.log("Failed to request pairing code:", err);
+            break;
+          }
+          await delay(2000 * attempt);
+        }
+      }
+    }
   }
-
   client.ev.on('presence.update', ({ id, presences: update }) => {
 		store.presences[id] = store.presences?.[id] || {};
 		Object.assign(store.presences[id], update);
@@ -183,6 +209,8 @@ async function sock() {
       if (mek.key && mek.key.remoteJid.includes("@newsletter")) return;
       if (!client.public && !mek.key.fromMe && chatUpdate.type === "notify")
         return;
+      if(mek.mtype === "protocolMessage") return;
+    if (mek.category === "peer") return;
       if (mek.key.id.startsWith("BAE5") && mek.key.id.length === 16) return;
 		const remoteJid = mek.key.remoteJid; 
 		store.messages[remoteJid] ??= {};
@@ -199,7 +227,7 @@ async function sock() {
 			store.messages[remoteJid].keyId.delete(removed.key.id);
 		}
 		if (!global.db.groupMetadata || Object.keys(global.db.groupMetadata).length === 0) global.db.groupMetadata ??= await client.groupFetchAllParticipating().catch(e => ({}));
-      m = smsg(client, mek, store);
+      m = await smsg(client, mek, store);
       require("./core")(client, m, chatUpdate);
     } catch (err) {
       console.log(err);
@@ -347,8 +375,17 @@ ${setting.minecraft.HOST}:${setting.minecraft.PORT}
     if (connection === "close") {
       global.connected = false;
       let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
-      if (reason !== DisconnectReason.loggedOut) sock();
-        else console.log("Device Logged out, remove /session to re-login.");
+      client = undefined;
+      if (reason === DisconnectReason.loggedOut) {
+        console.log("Device logged out, remove /session to re-login.");
+      } else if (!reconnecting) {
+        reconnecting = true;
+        console.log(`Connection closed (${reason}). Reconnecting in 5s...`);
+        setTimeout(async () => {
+          reconnecting = false;
+          await sock().catch((err) => console.log("Reconnect failed:", err));
+        }, 5000);
+      }
     } else if (connection === "open") {
       global.connected = true;
       console.log(color("Bot success conneted to server", "green"));
