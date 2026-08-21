@@ -83,7 +83,9 @@ module.exports = core = async (client, m, chatUpdate) => {
   const mime = qms.mimetype || "";
   const mek = chatUpdate.messages[0];
   const content = JSON.stringify(m.message);
-  const sender = m.isGroup ? m.key.fromMe ? m.sender : m.key.participant : m.sender;
+  let senderLid = message.isGroup ? message.key.participant : message.key.remoteJid;
+  let sender = message.isGroup ? message.key.fromMe ? await client.signalRepository.lidMapping.getPNForLID(message.key.participant) : message.key.participantAlt : message.key.remoteJidAlt;
+  sender = sender || senderLid || message.sender || message.key.participant || message.key.remoteJid || "unknown@s.whatsapp.net";
   const from = m.chat;
   const reply = m.reply;
 
@@ -92,20 +94,34 @@ module.exports = core = async (client, m, chatUpdate) => {
   const groupMetadata = m.isGroup
     ? await client.groupMetadata(m.chat).catch((e) => {})
     : "";
-  const getGroupAdmins = (participants) => {
-    admins = [];
-    for (let i of participants) {
-      i.admin ? admins.push(i.jid) : "";
-    }
-    return admins;
-  };
   const groupName = m.isGroup ? groupMetadata.subject : "";
   const groupId = m.isGroup ? groupMetadata.id : "";
   const groupMembers = m.isGroup ? groupMetadata.participants : "";
-  const groupAdmins = m.isGroup ? getGroupAdmins(groupMembers) : "";
   const isOwner = setting.owner.includes(sender.split("@")[0]) || false;
-  const botAdmin = groupAdmins.includes(botNumber) || false;
-  const isGroupAdmins = groupAdmins.includes(sender) || false;
+  let isGroupAdmins 
+  let botAdmin
+        if (isGroup) {
+          if (m.key.addressingMode === "lid") {
+            isGroupAdmins = groupMetadata.participants
+            .filter((participant) => participant.admin)
+            .map((participant) => participant.id)
+            .includes(senderLid)
+            botAdmin = groupMetadata.participants
+            .filter((participant) => participant.admin)
+            .map((participant) => participant.id)
+            .includes(client.user.lid.replace(/:\d+/, ""))
+        
+      } else {
+        isGroupAdmins = groupMetadata.participants
+        .filter((participant) => participant.admin)
+        .map((participant) => participant.phoneNumber)
+        .includes(sender)
+        botAdmin = groupMetadata.participants
+        .filter((participant) => participant.admin)
+        .map((participant) => participant.phoneNumber)
+        .includes(client.user.id)
+      }
+    }
 
   //Media init
   const isMedia = m.mtype === "imageMessage" || m.mtype === "videoMessage";
@@ -164,19 +180,6 @@ module.exports = core = async (client, m, chatUpdate) => {
         global.ws.send(`say §a${pushname} : ${textMessage}`);
       }
     }
-  }
-
-  //mongoDB Error Handler
-  if (
-    setting.mongoDB == true &&
-    setting.mongoString === "Enter Your Connection String!!"
-  ) {
-    return console.log(
-      color(
-        "Be sure your connection mongoDB string is corrrect!!\nCheck it on setting.js Line : 13",
-        "red"
-      )
-    );
   }
 
   //Message Detector
