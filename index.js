@@ -1,6 +1,6 @@
 require("./setting");
 
-//Modules
+//Modules 
 const NodeCache = require("node-cache");
 const figlet = require("figlet");
 const fs = require("fs");
@@ -277,6 +277,7 @@ async function sock() {
 	});
 
   client.ev.on("group-participants.update", async (event) => {
+      console.log(JSON.stringify(event, null, 2))
     group = event.id.endsWith("@g.us")
     if (!group) return;
     const metadata = await client.groupMetadata(event.id);
@@ -285,28 +286,31 @@ async function sock() {
       global.db.groupMetadata[event.id] = metadata;
     }
     for (let participant of event.participants) {
-      const id = client.decodeJid(participant);
+      //const id = client.decodeJid(participant);
+        const id = participant.id
       if (event.action === "add") {
         text = `
 Hello👋 @${id.split("@")[0]}, welcome to ${metadata.subject}!
 
 Please read the rules and guidelines before participating.
 It would be better if you introduce yourself first, so that everyone knows you!
+
 Name:
 IGN/Gamertag: 
 
 to join our server, the address is:
-${setting.minecraft.HOST}:${setting.minecraft.PORT}
+Address: ${setting.minecraft.HOST}
+PORT: ${setting.minecraft.PORT}
 `;
         console.log(`Participant ${id} added to group ${metadata.subject}`);
-        client.sendText(event.id, text, {mentions: [id]})
+        client.sendMessage(event.id, {text, mentions: [id]})
       } else if (event.action === "remove") {
         text = `Goodbye @${id.split("@")[0]}, it was nice to have an adventure with you.`
         console.log(`Participant ${id} removed from group ${metadata.subject}`);
-        client.sendText(event.id, text, {mentions: [id]})
+        client.sendMessage(event.id, {text, mentions: [id]})
       } else if (event.action === "promote") {
         console.log(`Participant ${id} promoted in group ${metadata.subject}`);
-      } else if (event.action === "demote") {
+      } else if (event.action =="demote") {
         console.log(`Participant ${id} demoted in group ${metadata.subject}`);
       }
     }
