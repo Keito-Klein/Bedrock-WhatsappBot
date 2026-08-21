@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const { sock } = require('./index.js'); // Import the client from index.js
+const { sock } = require('./index.js');
 const { spawn } = require('child_process');
 const { exitCode } = require('process');
 const fs = require('fs');
@@ -20,7 +20,7 @@ const TOTAL_PLAYERS = './db/players.json';
 let baileys;
 let retryCount = 0;
 const maxRetries = 5;
-let reconnectDelay = 15000; // 15 seconds
+let reconnectDelay = 15000;
 let playerTime = {};
 
 // Load existing play time data if available
@@ -66,7 +66,6 @@ global.ws.on("message", async(message) => {
     if(avoidText.some(text => message.toString().includes(text))) return;
     console.log(`Received from server: ${message.toString().trim()}`);
     let cleanText = message.toString().replace(/\[[^\]]*\]\s*/g, "").trim();
-    // Forward message to the client
     if(message.toString().includes("[CHAT]")) {
         cleanText = cleanText.replace(/^([^:]+):/, "*$1*:");
         await client.sendText(setting.minecraft.conversationChat, cleanText)
@@ -107,7 +106,7 @@ global.ws.on("close", async() => {
     if (retryCount < maxRetries) {
         console.log(`Attempting to reconnect in ${reconnectDelay/1000}s... (${retryCount}/${maxRetries})`);
         setTimeout(startServer, reconnectDelay);
-        reconnectDelay = Math.min(reconnectDelay * 2, 60000); // Exponential backoff up to 1 minute
+        reconnectDelay = Math.min(reconnectDelay * 2, 60000);
         retryCount++;
     } else {
         console.log("❌ WS failed to reconnect after 5 attempts.");
@@ -117,7 +116,7 @@ global.ws.on("close", async() => {
         exitCode = spawn('pm2', ['stop', 'vertibus']);
         exitCode.on('close', (code) => {
             console.log(`pm2 process exited with code ${code}`);
-            process.exit(0); // Exit the process after max retries
+            process.exit(0);
         });
     }
 
@@ -129,14 +128,14 @@ global.ws.on("error", (error) => {
 
 setInterval(() => {
   if (ws.readyState === WebSocket.OPEN) {
-    ws.ping() // traffic kecil
+    ws.ping()
   }
 }, 30000)
 }
 
 async function start() {
-    await connectBaileys(); // connect baileys sekali
-    startServer();          // jalankan ws auto reconnect
+    await connectBaileys();
+    startServer();         
 }
 
 start()
