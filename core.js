@@ -83,9 +83,9 @@ module.exports = core = async (client, m, chatUpdate) => {
   const mime = qms.mimetype || "";
   const mek = chatUpdate.messages[0];
   const content = JSON.stringify(m.message);
-  let senderLid = message.isGroup ? message.key.participant : message.key.remoteJid;
-  let sender = message.isGroup ? message.key.fromMe ? await client.signalRepository.lidMapping.getPNForLID(message.key.participant) : message.key.participantAlt : message.key.remoteJidAlt;
-  sender = sender || senderLid || message.sender || message.key.participant || message.key.remoteJid || "unknown@s.whatsapp.net";
+  let senderLid = m.isGroup ? m.key.participant : m.key.remoteJid;
+  let sender = m.isGroup ? m.key.fromMe ? await client.signalRepository.lidMapping.getPNForLID(m.key.participant) : m.key.participantAlt : m.key.remoteJidAlt;
+  sender = sender || senderLid || m.sender || m.key.participant || m.key.remoteJid || "unknown@s.whatsapp.net";
   const from = m.chat;
   const reply = m.reply;
 
